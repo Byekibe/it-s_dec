@@ -1,0 +1,2 @@
+Look at my evolution - I wanted to build a full app then I realized that I bit more than I could chew as you can see it in flask_app.md then I revised it so I can focus on core system first and since 
+it is a modular system adding the other modules would not be an issue as seen in core system architecture.md or enhanced core system architecture.md. 

@@ -1,0 +1,34 @@
+# Environment
+.env
+venv/
+env/
+*.pyc
+__pycache__/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+*.log
+
+# Flask
+instance/
+*.db
+*.sqlite
+migrations/
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+*.pytest_cache
+
+# Build
+build/
+dist/
+*.egg-info/
