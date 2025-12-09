@@ -20,4 +20,20 @@ def create_app(config_name="default"):
         from app.blueprints.stores.models import Store, StoreUser
         from app.blueprints.rbac.models import Role, Permission, UserRole, RolePermission
 
+    # Initialize security middleware and error handlers
+    from app.core.middleware import init_middleware
+    init_middleware(app)
+
+    # Initialize CLI commands
+    from app.cli import init_cli
+    init_cli(app)
+
+    # Register API blueprints
+    from app.blueprints.api.v1 import api_v1
+    app.register_blueprint(api_v1)
+
+    # Register health check blueprint (at root level, bypasses auth)
+    from app.blueprints.health import health_bp
+    app.register_blueprint(health_bp)
+
     return app

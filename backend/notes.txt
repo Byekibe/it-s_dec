@@ -1,2 +1,65 @@
 Look at my evolution - I wanted to build a full app then I realized that I bit more than I could chew as you can see it in flask_app.md then I revised it so I can focus on core system first and since 
 it is a modular system adding the other modules would not be an issue as seen in core system architecture.md or enhanced core system architecture.md. 
+
+
+"Read CLAUDE.md, progress.md, and todo.md to understand the current state of the project. What should we work on?
+
+ When you come back, just say something like:
+  - "Read progress.md and todo.md, let's continue"
+  - "What's next on the todo list?"
+  - "Let's pick up where we left off"
+
+  I'll read the files and get context on where we are.
+
+---
+
+## Known Gaps & Technical Debt (2025-12-07)
+
+### High Priority
+1. **Bootstrap has no role assignment**
+   - First user created via /bootstrap has no admin role
+   - Can authenticate but has zero permissions
+   - Fix: Create default "admin" role and assign to bootstrap user
+
+2. **Tenant query filter incomplete**
+   - `setup_tenant_query_filter()` in middleware.py is simplified
+   - May not work for complex queries (joins, subqueries)
+   - Needs testing with real queries and potential refinement
+
+### Medium Priority
+3. **No tests written**
+   - conftest.py and pytest.ini are empty
+   - Auth system critical path needs test coverage
+   - Tenant isolation needs explicit tests
+
+4. **datetime.utcnow() deprecation**
+   - Used in: tenants/models.py, stores/models.py, rbac/models.py, auth/services.py
+   - Deprecated in Python 3.12+
+   - Replace with: `datetime.now(timezone.utc)`
+
+5. **No health endpoint**
+   - `/health` is in middleware exempt paths but not implemented
+   - Need basic health check + DB connectivity check
+
+### Low Priority
+6. **Empty auth/models.py**
+   - File exists but unused
+   - Can delete or keep for future auth-specific models (e.g., RefreshToken blacklist)
+
+7. **Marshmallow 4.x edge cases**
+   - Using Marshmallow 4.0.1 (newer API)
+   - Watch for compatibility issues with examples/tutorials written for 3.x
+
+### Future Considerations
+- Permission seeding migration (define actual permissions)
+- Rate limiting on auth endpoints
+- Password reset flow
+- Email verification flow
+- Audit logging for security events
+
+Next up: User Management API endpoints (GET /users/me, PUT /users/me, GET /users) - the foundation for users to
+  view and update their profiles.
+
+  Prompt to continue:
+  Read progress.md and todo.md, let's implement the User Management endpoints (UserService, user schemas, user
+  routes)

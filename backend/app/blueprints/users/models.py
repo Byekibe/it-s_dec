@@ -21,9 +21,25 @@ class User(BaseModel):
     is_active = Column(Boolean, default=True, nullable=False)
 
     # Relationships
-    tenant_memberships = relationship('TenantUser', back_populates='user', cascade='all, delete-orphan')
-    store_assignments = relationship('StoreUser', back_populates='user', cascade='all, delete-orphan')
-    role_assignments = relationship('UserRole', back_populates='user', cascade='all, delete-orphan')
+    # Note: foreign_keys specified to resolve ambiguity with invited_by column
+    tenant_memberships = relationship(
+        'TenantUser',
+        back_populates='user',
+        cascade='all, delete-orphan',
+        foreign_keys='TenantUser.user_id'
+    )
+    store_assignments = relationship(
+        'StoreUser',
+        back_populates='user',
+        cascade='all, delete-orphan',
+        foreign_keys='StoreUser.user_id'
+    )
+    role_assignments = relationship(
+        'UserRole',
+        back_populates='user',
+        cascade='all, delete-orphan',
+        foreign_keys='UserRole.user_id'
+    )
 
     def set_password(self, password):
         """Hash and set user password."""
