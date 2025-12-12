@@ -14,8 +14,11 @@ from app.blueprints.users.schemas import (
     UpdateUserSchema,
     UserListResponseSchema,
     UserListQuerySchema,
+    InviteUserSchema,
+    InvitationResponseSchema,
+    UserTenantListResponseSchema,
 )
-from app.core.decorators import jwt_required, require_permission
+from app.core.decorators import jwt_required, require_permission, require_can_add_user
 from app.core.constants import Permissions
 from app.core.exceptions import ValidationError as AppValidationError
 
@@ -156,6 +159,7 @@ def get_user(user_id):
 
 @users_bp.route("", methods=["POST"])
 @require_permission(Permissions.USERS_CREATE)
+@require_can_add_user
 def create_user():
     """
     Create/invite a new user to the tenant.
@@ -260,3 +264,51 @@ def deactivate_user(user_id):
 
     response_schema = UserResponseSchema()
     return jsonify(response_schema.dump(user)), 200
+
+
+@users_bp.route("/invite", methods=["POST"])
+@require_permission(Permissions.USERS_CREATE)
+@require_can_add_user
+def invite_user():
+    """
+    Invite a user to join the tenant.
+
+    Request body:
+        email: Email address to invite (required)
+        role_id: UUID of role to assign on acceptance (optional)
+
+    Returns:
+        Invitation details with expiration
+    """
+    schema = InviteUserSchema()
+
+    try:
+        data = schema.load(request.get_json() or {})
+    except ValidationError as e:
+        raise AppValidationError("Validation failed", errors=e.messages)
+
+    result = UserService.invite_user(
+        email=data["email"],
+        role_id=data.get("role_id")
+    )
+
+    response_schema = InvitationResponseSchema()
+    return jsonify(response_schema.dump(result)), 201
+
+
+@users_bp.route("/me/tenants", methods=["GET"])
+@jwt_required
+def list_user_tenants():
+    """
+    List all tenants the current user belongs to.
+
+    Returns a list of tenants with an `is_current` flag indicating
+    which tenant is currently active.
+
+    Returns:
+        List of tenants with membership details
+    """
+    tenants = UserService.list_user_tenants()
+
+    response_schema = UserTenantListResponseSchema()
+    return jsonify(response_schema.dump({"tenants": tenants})), 200

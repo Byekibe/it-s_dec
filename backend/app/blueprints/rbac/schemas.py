@@ -77,9 +77,9 @@ class UserRoleResponseSchema(Schema):
     """Schema for user role assignment in responses."""
     id = fields.UUID()
     role_id = fields.UUID()
-    role_name = fields.String()
+    role_name = fields.String(attribute="role.name")
     store_id = fields.UUID(allow_none=True)
-    store_name = fields.String(allow_none=True)
+    store_name = fields.String(attribute="store.name", allow_none=True)
     assigned_at = fields.DateTime()
 
 

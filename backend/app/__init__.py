@@ -12,13 +12,23 @@ def create_app(config_name="default"):
 
     init_extension(app)
 
+    # Initialize Celery
+    from app.core.celery import init_celery
+    init_celery(app)
+
+    # Initialize Mail
+    from app.core.email import init_mail
+    init_mail(app)
+
     # Import models for Flask-Migrate to discover them
     # This must be done after db initialization
     with app.app_context():
         from app.blueprints.users.models import User
-        from app.blueprints.tenants.models import Tenant, TenantUser
-        from app.blueprints.stores.models import Store, StoreUser
+        from app.blueprints.tenants.models import Tenant, TenantUser, TenantSettings
+        from app.blueprints.stores.models import Store, StoreUser, StoreSettings
         from app.blueprints.rbac.models import Role, Permission, UserRole, RolePermission
+        from app.blueprints.auth.models import BlacklistedToken, UserTokenRevocation
+        from app.blueprints.subscriptions.models import Plan, Subscription
 
     # Initialize security middleware and error handlers
     from app.core.middleware import init_middleware

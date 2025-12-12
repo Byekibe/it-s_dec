@@ -9,7 +9,7 @@ from uuid import UUID
 from flask import g
 
 from app.extensions import db
-from app.blueprints.stores.models import Store, StoreUser
+from app.blueprints.stores.models import Store, StoreUser, StoreSettings
 from app.blueprints.tenants.models import TenantUser
 from app.blueprints.users.models import User
 from app.core.exceptions import (
@@ -386,3 +386,97 @@ class StoreService:
         ).delete(synchronize_session=False)
 
         db.session.commit()
+
+    @staticmethod
+    def get_store_settings(store_id: UUID) -> StoreSettings:
+        """
+        Get settings for a specific store.
+        Creates default settings if none exist.
+
+        Args:
+            store_id: UUID of the store
+
+        Returns:
+            StoreSettings object
+
+        Raises:
+            StoreNotFoundError: If store not found or not in tenant
+        """
+        tenant_id = g.tenant.id
+
+        # Verify store exists and belongs to tenant
+        store = db.session.query(Store).filter(
+            Store.id == store_id,
+            Store.tenant_id == tenant_id,
+            Store.deleted_at.is_(None)
+        ).first()
+
+        if not store:
+            raise StoreNotFoundError()
+
+        settings = db.session.query(StoreSettings).filter(
+            StoreSettings.store_id == store_id
+        ).first()
+
+        if not settings:
+            # Create default settings
+            settings = StoreSettings(store_id=store_id)
+            db.session.add(settings)
+            db.session.commit()
+            db.session.refresh(settings)
+
+        return settings
+
+    @staticmethod
+    def update_store_settings(
+        store_id: UUID,
+        operating_hours: Optional[dict] = None,
+        receipt_header: Optional[str] = None,
+        receipt_footer: Optional[str] = None,
+        print_receipt_by_default: Optional[bool] = None,
+        phone: Optional[str] = None,
+        email: Optional[str] = None,
+        address: Optional[str] = None,
+        allow_negative_stock: Optional[bool] = None,
+        low_stock_threshold: Optional[int] = None,
+    ) -> StoreSettings:
+        """
+        Update settings for a specific store.
+
+        Args:
+            store_id: UUID of the store
+            All other args are optional settings fields
+
+        Returns:
+            Updated StoreSettings object
+
+        Raises:
+            StoreNotFoundError: If store not found or not in tenant
+        """
+        # Get or create settings (also validates store access)
+        settings = StoreService.get_store_settings(store_id)
+
+        # Update fields if provided
+        if operating_hours is not None:
+            settings.operating_hours = operating_hours
+        if receipt_header is not None:
+            settings.receipt_header = receipt_header
+        if receipt_footer is not None:
+            settings.receipt_footer = receipt_footer
+        if print_receipt_by_default is not None:
+            settings.print_receipt_by_default = print_receipt_by_default
+        if phone is not None:
+            settings.phone = phone
+        if email is not None:
+            settings.email = email
+        if address is not None:
+            settings.address = address
+        if allow_negative_stock is not None:
+            settings.allow_negative_stock = allow_negative_stock
+        if low_stock_threshold is not None:
+            settings.low_stock_threshold = low_stock_threshold
+
+        settings.updated_at = datetime.utcnow()
+        db.session.commit()
+
+        return settings

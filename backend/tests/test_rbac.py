@@ -299,7 +299,7 @@ class TestUserRoleAssignment:
         data = response.get_json()
 
         roles = data.get("roles", data.get("items", []))
-        role_names = [r.get("name") or r.get("role", {}).get("name") for r in roles]
+        role_names = [r.get("role_name") for r in roles]
         assert "Admin" in role_names
 
     @pytest.mark.rbac

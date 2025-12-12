@@ -63,3 +63,84 @@ Next up: User Management API endpoints (GET /users/me, PUT /users/me, GET /users
   Prompt to continue:
   Read progress.md and todo.md, let's implement the User Management endpoints (UserService, user schemas, user
   routes)
+
+
+  Suggested Next Query
+
+  Pick one:
+
+  Option A - Health Checks (5 min, quick win):
+  Let's implement the health check endpoints (GET /health and GET /health/db)
+
+  Option B - Testing Setup (more involved):
+  Let's set up pytest and write tests for the auth and user services
+
+  Option C - Continue with features:
+  Let's implement the subscription and billing system
+
+  ---
+  Verify Everything Still Works 
+
+
+  Forgot Password Flow
+
+  - POST /api/v1/auth/forgot-password - Request password reset email
+  - POST /api/v1/auth/reset-password - Reset password with token
+  - Password reset token model/storage
+
+  This builds on the email/Celery infrastructure we just set up.
+
+  ---
+  Query to Continue
+
+  When you're back, paste this:
+
+  Let's continue with the Forgot Password Flow. We have:
+  - Celery + Redis configured for background tasks
+  - Flask-Mail configured for sending emails
+  - Email service with send_password_reset_email() stub in app/core/email.py
+
+  Implement:
+  1. PasswordResetToken model (token, user_id, expires_at, used_at)
+  2. AuthService.forgot_password() - generates token, queues email
+  3. AuthService.reset_password() - validates token, updates password
+  4. POST /api/v1/auth/forgot-password route
+  5. POST /api/v1/auth/reset-password route
+  6. Tests for the flow
+
+  The token should expire in 1 hour and be single-use.
+
+  ---
+  Enjoy your break! 🎉
+
+
+
+> We are close to hittinhg limit we are at 98% what do I do? Do we update the what we've just done then continue?
+
+● Yes, let's quickly summarize what we've done so you can continue in a new session.
+
+  Completed So Far
+
+  1. Plan & Subscription Models ✓ - app/blueprints/subscriptions/models.py
+  2. Migration for tables ✓ - 414b99684cbe_add_plans_and_subscriptions_tables.py
+  3. Seed migration for plans ✓ - 8f3b2c1a9d0e_seed_default_plans.py (Free, Basic, Pro, Enterprise)
+  4. Schemas ✓ - app/blueprints/subscriptions/schemas.py
+  5. Service with limit enforcement ✓ - app/blueprints/subscriptions/services.py
+  6. Routes ✓ - app/blueprints/subscriptions/routes.py (10 endpoints)
+  7. Blueprint registered ✓ - in app/blueprints/api/v1/__init__.py
+  8. Limit decorators ✓ - Added to app/core/decorators.py
+
+  Remaining Tasks
+
+  1. Update AuthService.register - Create subscription when tenant registers
+  2. Apply decorators - Add @require_can_add_user to user invite, @require_can_add_store to store create
+  3. Write tests - Test subscription endpoints and limit enforcement
+  4. Update progress.md
+
+  Quick Command for New Session
+
+  Continue subscription implementation. Completed: models, migration, seeds, schemas, service, routes, decorators.
+  Remaining:
+  1. Update AuthService.register to create subscription on tenant registration
+  2. Apply @require_can_add_user/@require_can_add_store decorators to relevant routes
+  3. Write tests for subscriptions

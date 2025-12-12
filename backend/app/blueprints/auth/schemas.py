@@ -112,3 +112,47 @@ class AuthResponseSchema(Schema):
     expires_in = fields.Integer()
     user = fields.Nested(UserResponseSchema)
     tenant = fields.Nested(TenantResponseSchema)
+
+
+class MessageResponseSchema(Schema):
+    """Schema for simple message responses."""
+    message = fields.String(required=True)
+
+
+class ForgotPasswordSchema(Schema):
+    """Schema for forgot password requests."""
+    email = fields.Email(required=True)
+
+
+class ResetPasswordSchema(Schema):
+    """Schema for password reset requests."""
+    token = fields.String(required=True)
+    password = fields.String(
+        required=True,
+        load_only=True,
+        validate=validate.Length(min=8, error="Password must be at least 8 characters")
+    )
+
+
+class VerifyEmailSchema(Schema):
+    """Schema for email verification requests."""
+    token = fields.String(required=True)
+
+
+class AcceptInviteSchema(Schema):
+    """Schema for accepting an invitation."""
+    token = fields.String(required=True)
+    full_name = fields.String(
+        required=True,
+        validate=validate.Length(min=1, max=255)
+    )
+    password = fields.String(
+        required=True,
+        load_only=True,
+        validate=validate.Length(min=8, error="Password must be at least 8 characters")
+    )
+
+
+class SwitchTenantSchema(Schema):
+    """Schema for switching to a different tenant."""
+    tenant_id = fields.UUID(required=True)

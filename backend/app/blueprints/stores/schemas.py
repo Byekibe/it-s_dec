@@ -76,3 +76,56 @@ class StoreListQuerySchema(Schema):
 class StoreUserAssignmentSchema(Schema):
     """Schema for assigning/removing users from a store."""
     user_ids = fields.List(fields.UUID(), required=True)
+
+
+class OperatingHoursSchema(Schema):
+    """Schema for a single day's operating hours."""
+    open = fields.String(validate=validate.Regexp(r'^([01]?[0-9]|2[0-3]):[0-5][0-9]$'))
+    close = fields.String(validate=validate.Regexp(r'^([01]?[0-9]|2[0-3]):[0-5][0-9]$'))
+    closed = fields.Boolean(load_default=False)
+
+
+class StoreSettingsResponseSchema(Schema):
+    """Schema for store settings response."""
+    # Operating hours
+    operating_hours = fields.Dict(keys=fields.String(), values=fields.Nested(OperatingHoursSchema), allow_none=True)
+
+    # Receipt settings
+    receipt_header = fields.String(allow_none=True)
+    receipt_footer = fields.String(allow_none=True)
+    print_receipt_by_default = fields.Boolean()
+
+    # Store contact
+    phone = fields.String(allow_none=True)
+    email = fields.String(allow_none=True)
+    address = fields.String(allow_none=True)
+
+    # Inventory settings
+    allow_negative_stock = fields.Boolean()
+    low_stock_threshold = fields.Integer()
+
+
+class UpdateStoreSettingsSchema(Schema):
+    """Schema for updating store settings."""
+    # Operating hours (JSON: {"monday": {"open": "08:00", "close": "18:00"}, ...})
+    operating_hours = fields.Dict(
+        keys=fields.String(validate=validate.OneOf([
+            'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'
+        ])),
+        values=fields.Nested(OperatingHoursSchema),
+        allow_none=True
+    )
+
+    # Receipt settings
+    receipt_header = fields.String(validate=validate.Length(max=500), allow_none=True)
+    receipt_footer = fields.String(validate=validate.Length(max=500), allow_none=True)
+    print_receipt_by_default = fields.Boolean()
+
+    # Store contact
+    phone = fields.String(validate=validate.Length(max=50), allow_none=True)
+    email = fields.Email(allow_none=True)
+    address = fields.String(validate=validate.Length(max=1000), allow_none=True)
+
+    # Inventory settings
+    allow_negative_stock = fields.Boolean()
+    low_stock_threshold = fields.Integer(validate=validate.Range(min=0, max=10000))

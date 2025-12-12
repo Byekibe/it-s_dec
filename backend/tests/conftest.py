@@ -19,6 +19,7 @@ from app.blueprints.users.models import User
 from app.blueprints.tenants.models import Tenant, TenantUser, TenantStatus
 from app.blueprints.stores.models import Store, StoreUser
 from app.blueprints.rbac.models import Role, Permission, UserRole, RolePermission
+from app.blueprints.subscriptions.models import Plan, Subscription, SubscriptionStatus
 from app.core.utils import generate_token_pair
 
 
@@ -33,9 +34,64 @@ def app():
 
     with app.app_context():
         db.create_all()
+        # Create default plans needed for registration
+        _create_default_plans()
         yield app
         db.session.remove()
         db.drop_all()
+
+
+def _create_default_plans():
+    """Create the default plans needed for the app to function."""
+    plans_data = [
+        {
+            "name": "Free",
+            "slug": "free",
+            "description": "Free tier for small businesses",
+            "price_monthly": 0,
+            "price_yearly": 0,
+            "max_users": 2,
+            "max_stores": 1,
+            "max_products": 100,
+            "trial_days": 0,
+            "sort_order": 0,
+            "is_active": True,
+        },
+        {
+            "name": "Basic",
+            "slug": "basic",
+            "description": "Basic tier for growing businesses",
+            "price_monthly": 1000,
+            "price_yearly": 10000,
+            "max_users": 5,
+            "max_stores": 3,
+            "max_products": 500,
+            "trial_days": 14,
+            "sort_order": 1,
+            "is_active": True,
+        },
+        {
+            "name": "Pro",
+            "slug": "pro",
+            "description": "Pro tier for established businesses",
+            "price_monthly": 5000,
+            "price_yearly": 50000,
+            "max_users": None,
+            "max_stores": None,
+            "max_products": None,
+            "trial_days": 14,
+            "sort_order": 2,
+            "is_active": True,
+        },
+    ]
+
+    for plan_data in plans_data:
+        existing = db.session.query(Plan).filter(Plan.slug == plan_data["slug"]).first()
+        if not existing:
+            plan = Plan(**plan_data)
+            db.session.add(plan)
+
+    db.session.commit()
 
 
 @pytest.fixture(scope="function")

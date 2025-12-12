@@ -14,9 +14,11 @@ from app.blueprints.stores.schemas import (
     StoreListResponseSchema,
     StoreListQuerySchema,
     StoreUserAssignmentSchema,
+    StoreSettingsResponseSchema,
+    UpdateStoreSettingsSchema,
 )
 from app.blueprints.users.schemas import UserResponseSchema
-from app.core.decorators import require_permission
+from app.core.decorators import require_permission, require_can_add_store
 from app.core.constants import Permissions
 from app.core.exceptions import ValidationError as AppValidationError
 
@@ -97,6 +99,7 @@ def get_store(store_id):
 
 @stores_bp.route("", methods=["POST"])
 @require_permission(Permissions.STORES_CREATE)
+@require_can_add_store
 def create_store():
     """
     Create a new store.
@@ -262,3 +265,68 @@ def remove_users_from_store(store_id):
     )
 
     return jsonify({"message": "Users removed from store"}), 200
+
+
+@stores_bp.route("/<uuid:store_id>/settings", methods=["GET"])
+@require_permission(Permissions.STORES_VIEW)
+def get_store_settings(store_id):
+    """
+    Get a store's settings.
+
+    Path parameters:
+        store_id: UUID of the store
+
+    Returns:
+        Store settings (operating hours, receipt settings, inventory settings)
+    """
+    settings = StoreService.get_store_settings(store_id)
+
+    response_schema = StoreSettingsResponseSchema()
+    return jsonify(response_schema.dump(settings.to_dict())), 200
+
+
+@stores_bp.route("/<uuid:store_id>/settings", methods=["PUT"])
+@require_permission(Permissions.STORES_EDIT)
+def update_store_settings(store_id):
+    """
+    Update a store's settings.
+
+    Path parameters:
+        store_id: UUID of the store
+
+    Request body:
+        operating_hours: Dict of day -> {open, close, closed} (optional)
+        receipt_header: Custom receipt header text (optional)
+        receipt_footer: Custom receipt footer text (optional)
+        print_receipt_by_default: Whether to print receipt by default (optional)
+        phone: Store phone override (optional)
+        email: Store email override (optional)
+        address: Store address override (optional)
+        allow_negative_stock: Whether to allow negative stock (optional)
+        low_stock_threshold: Low stock alert threshold (optional)
+
+    Returns:
+        Updated store settings
+    """
+    schema = UpdateStoreSettingsSchema()
+
+    try:
+        data = schema.load(request.get_json() or {})
+    except ValidationError as e:
+        raise AppValidationError("Validation failed", errors=e.messages)
+
+    settings = StoreService.update_store_settings(
+        store_id=store_id,
+        operating_hours=data.get("operating_hours"),
+        receipt_header=data.get("receipt_header"),
+        receipt_footer=data.get("receipt_footer"),
+        print_receipt_by_default=data.get("print_receipt_by_default"),
+        phone=data.get("phone"),
+        email=data.get("email"),
+        address=data.get("address"),
+        allow_negative_stock=data.get("allow_negative_stock"),
+        low_stock_threshold=data.get("low_stock_threshold"),
+    )
+
+    response_schema = StoreSettingsResponseSchema()
+    return jsonify(response_schema.dump(settings.to_dict())), 200

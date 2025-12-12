@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Optional, List
 from uuid import UUID
 
+from sqlalchemy.orm import joinedload
 from flask import g
 
 from app.extensions import db
@@ -363,33 +364,18 @@ class RBACService:
         if not tenant_user:
             raise UserNotFoundError()
 
-        # Get role assignments
+        # Get role assignments, eagerly loading role and store names to avoid N+1 queries
         role_assignments = db.session.query(UserRole).filter(
             UserRole.user_id == user_id,
             UserRole.tenant_id == tenant_id
+        ).options(
+            joinedload(UserRole.role),
+            joinedload(UserRole.store)
         ).all()
-
-        roles = []
-        for ra in role_assignments:
-            role = db.session.get(Role, ra.role_id)
-            if role and role.deleted_at is None:
-                store_name = None
-                if ra.store_id:
-                    store = db.session.get(Store, ra.store_id)
-                    store_name = store.name if store else None
-
-                roles.append({
-                    "id": ra.id,
-                    "role_id": role.id,
-                    "role_name": role.name,
-                    "store_id": ra.store_id,
-                    "store_name": store_name,
-                    "assigned_at": ra.assigned_at,
-                })
 
         return {
             "user_id": user_id,
-            "roles": roles,
+            "roles": role_assignments,  # Return model objects directly for schema to handle
         }
 
     @staticmethod

@@ -8,11 +8,13 @@ from app.blueprints.users import users_bp
 from app.blueprints.tenants import tenants_bp
 from app.blueprints.stores import stores_bp
 from app.blueprints.rbac import rbac_bp
+from app.blueprints.subscriptions import subscriptions_bp
 
 api_v1.register_blueprint(auth_bp)
 api_v1.register_blueprint(users_bp)
 api_v1.register_blueprint(tenants_bp)
 api_v1.register_blueprint(stores_bp)
 api_v1.register_blueprint(rbac_bp)
+api_v1.register_blueprint(subscriptions_bp)
 
 

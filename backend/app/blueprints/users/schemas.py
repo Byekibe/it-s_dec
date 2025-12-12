@@ -2,7 +2,7 @@
 User schemas for request/response validation.
 """
 
-from marshmallow import Schema, fields, validate, validates, ValidationError
+from marshmallow import Schema, fields, validate, validates, ValidationError, validates_schema
 
 
 class UserResponseSchema(Schema):
@@ -46,11 +46,10 @@ class UpdateCurrentUserSchema(Schema):
         validate=validate.Length(min=8, error="Password must be at least 8 characters")
     )
 
-    @validates("new_password")
-    def validate_new_password(self, value):
-        """Ensure current_password is provided when changing password."""
-        # Note: This validation happens at the service level since we need
-        # access to both fields together
+    @validates_schema
+    def validate_password_change(self, data, **kwargs):
+        if 'new_password' in data and not data.get('current_password'):
+            raise ValidationError("Current password is required to change password.", field_name="current_password")
 
 
 class CreateUserSchema(Schema):
@@ -94,3 +93,32 @@ class UserListQuerySchema(Schema):
     search = fields.String(load_default=None)
     is_active = fields.Boolean(load_default=None)
     store_id = fields.UUID(load_default=None)
+
+
+class InviteUserSchema(Schema):
+    """Schema for inviting a user to the tenant."""
+    email = fields.Email(required=True)
+    role_id = fields.UUID(load_default=None)
+
+
+class InvitationResponseSchema(Schema):
+    """Schema for invitation response."""
+    id = fields.UUID()
+    email = fields.Email()
+    expires_at = fields.DateTime()
+    message = fields.String()
+
+
+class UserTenantResponseSchema(Schema):
+    """Schema for tenant info in user's tenant list."""
+    id = fields.UUID()
+    name = fields.String()
+    slug = fields.String()
+    status = fields.String()
+    is_current = fields.Boolean()
+    joined_at = fields.DateTime()
+
+
+class UserTenantListResponseSchema(Schema):
+    """Schema for list of user's tenants."""
+    tenants = fields.List(fields.Nested(UserTenantResponseSchema))

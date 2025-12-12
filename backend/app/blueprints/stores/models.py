@@ -1,13 +1,15 @@
 """
 Store models
 """
+import uuid
 from datetime import datetime
 
-from sqlalchemy import Column, String, Text, Boolean, DateTime, ForeignKey, Index, UniqueConstraint
+from sqlalchemy import Column, String, Text, Boolean, DateTime, ForeignKey, Index, UniqueConstraint, Time, JSON
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
 from app.core.models import TenantScopedModel, BaseModel
+from app.extensions import db
 
 
 class Store(TenantScopedModel):
@@ -62,3 +64,55 @@ class StoreUser(BaseModel):
 
     def __repr__(self):
         return f'<StoreUser user_id={self.user_id} store_id={self.store_id}>'
+
+
+class StoreSettings(db.Model):
+    """
+    Store-specific configuration settings.
+    One-to-one relationship with Store.
+    """
+    __tablename__ = 'store_settings'
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    store_id = Column(UUID(as_uuid=True), ForeignKey('stores.id'), nullable=False, unique=True, index=True)
+
+    # Operating hours (JSON format: {"monday": {"open": "08:00", "close": "18:00"}, ...})
+    operating_hours = Column(JSON, nullable=True)
+
+    # Receipt settings
+    receipt_header = Column(Text, nullable=True)  # Custom text at top of receipt
+    receipt_footer = Column(Text, nullable=True)  # Custom text at bottom of receipt
+    print_receipt_by_default = Column(Boolean, nullable=False, default=True)
+
+    # Store-specific contact (overrides tenant if set)
+    phone = Column(String(50), nullable=True)
+    email = Column(String(255), nullable=True)
+    address = Column(Text, nullable=True)
+
+    # Inventory settings
+    allow_negative_stock = Column(Boolean, nullable=False, default=False)
+    low_stock_threshold = Column(db.Integer, nullable=False, default=10)
+
+    # Timestamps
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationship
+    store = relationship('Store', backref=db.backref('settings', uselist=False, lazy='joined'))
+
+    def __repr__(self):
+        return f'<StoreSettings store_id={self.store_id}>'
+
+    def to_dict(self):
+        """Convert settings to dictionary."""
+        return {
+            'operating_hours': self.operating_hours,
+            'receipt_header': self.receipt_header,
+            'receipt_footer': self.receipt_footer,
+            'print_receipt_by_default': self.print_receipt_by_default,
+            'phone': self.phone,
+            'email': self.email,
+            'address': self.address,
+            'allow_negative_stock': self.allow_negative_stock,
+            'low_stock_threshold': self.low_stock_threshold,
+        }

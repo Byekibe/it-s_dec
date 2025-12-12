@@ -2,7 +2,7 @@
 Authentication routes.
 """
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 from marshmallow import ValidationError
 
 from app.blueprints.auth.services import AuthService
@@ -13,8 +13,16 @@ from app.blueprints.auth.schemas import (
     RefreshTokenSchema,
     AuthResponseSchema,
     TokenResponseSchema,
+    MessageResponseSchema,
+    ForgotPasswordSchema,
+    ResetPasswordSchema,
+    VerifyEmailSchema,
+    AcceptInviteSchema,
+    SwitchTenantSchema,
 )
 from app.core.exceptions import ValidationError as AppValidationError
+from app.core.decorators import jwt_required
+from app.core.middleware import get_token_from_header
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
@@ -142,3 +150,193 @@ def bootstrap():
 
     response_schema = AuthResponseSchema()
     return jsonify(response_schema.dump(result)), 201
+
+
+@auth_bp.route("/logout", methods=["POST"])
+@jwt_required
+def logout():
+    """
+    Logout and invalidate the current access token.
+
+    Requires authentication. The current token will be blacklisted
+    and cannot be used again.
+
+    Returns:
+        Success message
+    """
+    token = get_token_from_header()
+    result = AuthService.logout(token=token)
+
+    response_schema = MessageResponseSchema()
+    return jsonify(response_schema.dump(result)), 200
+
+
+@auth_bp.route("/logout-all", methods=["POST"])
+@jwt_required
+def logout_all():
+    """
+    Logout from all sessions.
+
+    Requires authentication. All tokens issued before this point
+    will be invalidated for the current user.
+
+    Returns:
+        Success message
+    """
+    result = AuthService.logout_all(user_id=g.user.id)
+
+    response_schema = MessageResponseSchema()
+    return jsonify(response_schema.dump(result)), 200
+
+
+@auth_bp.route("/forgot-password", methods=["POST"])
+def forgot_password():
+    """
+    Request a password reset email.
+
+    Request body:
+        email: User's email address
+
+    Returns:
+        Success message (always returns success to prevent email enumeration)
+    """
+    schema = ForgotPasswordSchema()
+
+    try:
+        data = schema.load(request.get_json() or {})
+    except ValidationError as e:
+        raise AppValidationError("Validation failed", errors=e.messages)
+
+    result = AuthService.forgot_password(email=data["email"])
+
+    response_schema = MessageResponseSchema()
+    return jsonify(response_schema.dump(result)), 200
+
+
+@auth_bp.route("/reset-password", methods=["POST"])
+def reset_password():
+    """
+    Reset password using a valid reset token.
+
+    Request body:
+        token: Password reset token from email
+        password: New password (min 8 chars)
+
+    Returns:
+        Success message
+    """
+    schema = ResetPasswordSchema()
+
+    try:
+        data = schema.load(request.get_json() or {})
+    except ValidationError as e:
+        raise AppValidationError("Validation failed", errors=e.messages)
+
+    result = AuthService.reset_password(
+        token=data["token"],
+        new_password=data["password"]
+    )
+
+    response_schema = MessageResponseSchema()
+    return jsonify(response_schema.dump(result)), 200
+
+
+@auth_bp.route("/verify-email", methods=["POST"])
+def verify_email():
+    """
+    Verify email using a verification token.
+
+    Request body:
+        token: Email verification token from email
+
+    Returns:
+        Success message
+    """
+    schema = VerifyEmailSchema()
+
+    try:
+        data = schema.load(request.get_json() or {})
+    except ValidationError as e:
+        raise AppValidationError("Validation failed", errors=e.messages)
+
+    result = AuthService.verify_email(token=data["token"])
+
+    response_schema = MessageResponseSchema()
+    return jsonify(response_schema.dump(result)), 200
+
+
+@auth_bp.route("/resend-verification", methods=["POST"])
+@jwt_required
+def resend_verification():
+    """
+    Resend verification email to the current user.
+
+    Requires authentication. Only sends if email is not yet verified.
+
+    Returns:
+        Success message
+    """
+    result = AuthService.resend_verification(user_id=g.user.id)
+
+    response_schema = MessageResponseSchema()
+    return jsonify(response_schema.dump(result)), 200
+
+
+@auth_bp.route("/accept-invite", methods=["POST"])
+def accept_invite():
+    """
+    Accept an invitation and join a tenant.
+
+    Request body:
+        token: Invitation token from email
+        full_name: User's full name
+        password: User's password (min 8 chars)
+
+    Returns:
+        access_token, refresh_token, user, tenant
+    """
+    schema = AcceptInviteSchema()
+
+    try:
+        data = schema.load(request.get_json() or {})
+    except ValidationError as e:
+        raise AppValidationError("Validation failed", errors=e.messages)
+
+    result = AuthService.accept_invite(
+        token=data["token"],
+        full_name=data["full_name"],
+        password=data["password"]
+    )
+
+    response_schema = AuthResponseSchema()
+    return jsonify(response_schema.dump(result)), 201
+
+
+@auth_bp.route("/switch-tenant", methods=["POST"])
+@jwt_required
+def switch_tenant():
+    """
+    Switch to a different tenant.
+
+    Requires authentication. User must be a member of the target tenant.
+
+    Request body:
+        tenant_id: UUID of the tenant to switch to
+
+    Returns:
+        access_token, refresh_token, user, tenant
+    """
+    schema = SwitchTenantSchema()
+
+    try:
+        data = schema.load(request.get_json() or {})
+    except ValidationError as e:
+        raise AppValidationError("Validation failed", errors=e.messages)
+
+    result = AuthService.switch_tenant(
+        user_id=g.user.id,
+        target_tenant_id=data["tenant_id"]
+    )
+
+    response_schema = AuthResponseSchema()
+    return jsonify(response_schema.dump(result)), 200

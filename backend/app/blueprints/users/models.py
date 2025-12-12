@@ -1,7 +1,7 @@
 """
 User models
 """
-from sqlalchemy import Column, String, Boolean
+from sqlalchemy import Column, String, Boolean, DateTime
 from sqlalchemy.orm import relationship
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -19,6 +19,8 @@ class User(BaseModel):
     password_hash = Column(String(255), nullable=False)
     full_name = Column(String(255), nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
+    email_verified = Column(Boolean, default=False, nullable=False)
+    email_verified_at = Column(DateTime, nullable=True)
 
     # Relationships
     # Note: foreign_keys specified to resolve ambiguity with invited_by column

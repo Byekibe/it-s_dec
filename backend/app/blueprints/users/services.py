@@ -10,9 +10,11 @@ from flask import g
 
 from app.extensions import db
 from app.blueprints.users.models import User
-from app.blueprints.tenants.models import TenantUser
+from app.blueprints.tenants.models import Tenant, TenantUser
 from app.blueprints.stores.models import Store, StoreUser
 from app.blueprints.rbac.models import Role, UserRole
+from flask import current_app
+
 from app.core.exceptions import (
     UserNotFoundError,
     DuplicateResourceError,
@@ -543,3 +545,127 @@ class UserService:
         db.session.commit()
 
         return user
+
+    @staticmethod
+    def invite_user(
+        email: str,
+        role_id: Optional[UUID] = None
+    ) -> dict:
+        """
+        Invite a user to join the current tenant.
+
+        Creates an invitation and sends email to the invitee.
+
+        Args:
+            email: Email address to invite
+            role_id: Optional role UUID to assign on acceptance
+
+        Returns:
+            Dict with invitation details
+
+        Raises:
+            DuplicateResourceError: If user already in tenant
+            RoleNotFoundError: If role_id is invalid
+        """
+        from app.blueprints.auth.models import UserInvitation
+        from app.blueprints.tenants.models import Tenant
+
+        tenant_id = g.tenant.id
+        current_user = g.user
+        email = email.lower()
+
+        # Check if user already exists in this tenant
+        existing_user = db.session.query(User).filter(
+            User.email == email
+        ).first()
+
+        if existing_user:
+            existing_membership = db.session.query(TenantUser).filter(
+                TenantUser.user_id == existing_user.id,
+                TenantUser.tenant_id == tenant_id
+            ).first()
+
+            if existing_membership:
+                raise DuplicateResourceError("User is already a member of this tenant")
+
+        # Validate role if provided
+        if role_id:
+            role = db.session.get(Role, role_id)
+            if not role or role.tenant_id != tenant_id:
+                raise RoleNotFoundError(f"Role {role_id} not found")
+
+        # Invalidate any existing pending invitations for this email/tenant
+        UserInvitation.invalidate_pending_invitations(email, tenant_id)
+
+        # Create new invitation
+        invitation = UserInvitation.create_invitation(
+            email=email,
+            tenant_id=tenant_id,
+            invited_by=current_user.id,
+            role_id=role_id
+        )
+        db.session.commit()
+
+        # Get tenant name for the email
+        tenant = db.session.get(Tenant, tenant_id)
+
+        # Build invitation URL
+        frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:3000')
+        invite_url = f"{frontend_url}/accept-invite?token={invitation.token}"
+
+        # Queue email sending task
+        try:
+            from app.core.tasks import send_invitation_email_task
+            send_invitation_email_task.delay(
+                to=email,
+                inviter_name=current_user.full_name,
+                tenant_name=tenant.name,
+                invite_url=invite_url
+            )
+        except Exception:
+            # If Celery is not available, send synchronously
+            from app.core.email import send_user_invitation
+            send_user_invitation(
+                to=email,
+                inviter_name=current_user.full_name,
+                tenant_name=tenant.name,
+                invite_url=invite_url
+            )
+
+        return {
+            "id": invitation.id,
+            "email": invitation.email,
+            "expires_at": invitation.expires_at,
+            "message": "Invitation sent successfully"
+        }
+
+    @staticmethod
+    def list_user_tenants() -> List[dict]:
+        """
+        List all tenants the current user belongs to.
+
+        Returns:
+            List of tenant dicts with id, name, slug, status, and is_current flag
+        """
+        user = g.user
+        current_tenant_id = g.tenant.id if g.tenant else None
+
+        # Get all tenant memberships for this user
+        memberships = db.session.query(TenantUser).filter(
+            TenantUser.user_id == user.id
+        ).all()
+
+        tenants = []
+        for membership in memberships:
+            tenant = db.session.get(Tenant, membership.tenant_id)
+            if tenant and not tenant.is_deleted:
+                tenants.append({
+                    "id": tenant.id,
+                    "name": tenant.name,
+                    "slug": tenant.slug,
+                    "status": tenant.status.value,
+                    "is_current": tenant.id == current_tenant_id,
+                    "joined_at": membership.joined_at,
+                })
+
+        return tenants

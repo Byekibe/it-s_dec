@@ -90,23 +90,24 @@ class TestTenantStatus:
     """Tests for tenant status handling."""
 
     @pytest.mark.integration
-    def test_trial_tenant_can_operate(self, client, app, user, tenant_trial, user_password):
-        """Test that trial tenant can perform normal operations."""
-        from app.blueprints.tenants.models import TenantUser
-        from app.core.utils import generate_token_pair
-        from datetime import datetime
+    def test_trial_tenant_can_operate(self, client, app, user_password, permissions):
+        """Test that trial tenant can perform normal operations after registration."""
+        from app.blueprints.auth.services import AuthService
 
         with app.app_context():
-            # Create membership
-            tu = TenantUser(
-                user_id=user.id,
-                tenant_id=tenant_trial.id,
-                joined_at=datetime.utcnow()
+            # Use the registration service to create a user and a trial tenant with roles.
+            # This is a more realistic integration test.
+            reg_data = AuthService.register(
+                email="trialuser@example.com",
+                password=user_password,
+                full_name="Trial User",
+                tenant_name="Trial From Reg",
+                tenant_slug="trial-from-reg"
             )
-            db.session.add(tu)
-            db.session.commit()
-
-            tokens = generate_token_pair(user.id, tenant_trial.id)
+            tokens = {
+                "access_token": reg_data["access_token"],
+                "refresh_token": reg_data["refresh_token"],
+            }
 
         headers = {
             "Authorization": f"Bearer {tokens['access_token']}",
@@ -249,3 +250,160 @@ class TestTenantValidation:
             assert data["slug"] == data["slug"].lower()
         else:
             assert response.status_code == 400
+
+
+class TestTenantSettings:
+    """Tests for /api/v1/tenants/current/settings endpoint."""
+
+    @pytest.mark.integration
+    def test_get_tenant_settings_default(
+        self, client, user, tenant, tenant_user, permissions, admin_role, user_with_admin_role, auth_headers
+    ):
+        """Test getting tenant settings returns defaults when none exist."""
+        response = client.get("/api/v1/tenants/current/settings", headers=auth_headers)
+
+        assert response.status_code == 200
+        data = response.get_json()
+
+        # Check default values for Kenya
+        assert data["timezone"] == "Africa/Nairobi"
+        assert data["currency"] == "KES"
+        assert data["locale"] == "en-KE"
+        assert data["tax_rate"] == 16.0
+        assert data["tax_inclusive_pricing"] is True
+        assert data["date_format"] == "DD/MM/YYYY"
+        assert data["time_format"] == "24h"
+
+    @pytest.mark.integration
+    def test_update_tenant_settings_timezone(
+        self, client, user, tenant, tenant_user, permissions, admin_role, user_with_admin_role, auth_headers
+    ):
+        """Test updating tenant timezone."""
+        response = client.put("/api/v1/tenants/current/settings", headers=auth_headers, json={
+            "timezone": "Africa/Lagos"
+        })
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["timezone"] == "Africa/Lagos"
+
+    @pytest.mark.integration
+    def test_update_tenant_settings_currency(
+        self, client, user, tenant, tenant_user, permissions, admin_role, user_with_admin_role, auth_headers
+    ):
+        """Test updating tenant currency."""
+        response = client.put("/api/v1/tenants/current/settings", headers=auth_headers, json={
+            "currency": "USD"
+        })
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["currency"] == "USD"
+
+    @pytest.mark.integration
+    def test_update_tenant_settings_tax(
+        self, client, user, tenant, tenant_user, permissions, admin_role, user_with_admin_role, auth_headers
+    ):
+        """Test updating tenant tax settings."""
+        response = client.put("/api/v1/tenants/current/settings", headers=auth_headers, json={
+            "tax_rate": 8.0,
+            "tax_inclusive_pricing": False,
+            "tax_id": "P051234567X"
+        })
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["tax_rate"] == 8.0
+        assert data["tax_inclusive_pricing"] is False
+        assert data["tax_id"] == "P051234567X"
+
+    @pytest.mark.integration
+    def test_update_tenant_settings_business_info(
+        self, client, user, tenant, tenant_user, permissions, admin_role, user_with_admin_role, auth_headers
+    ):
+        """Test updating tenant business info for receipts."""
+        response = client.put("/api/v1/tenants/current/settings", headers=auth_headers, json={
+            "business_name": "Acme Ltd",
+            "business_address": "123 Kenyatta Ave, Nairobi",
+            "business_phone": "+254712345678",
+            "business_email": "info@acme.co.ke"
+        })
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["business_name"] == "Acme Ltd"
+        assert data["business_address"] == "123 Kenyatta Ave, Nairobi"
+        assert data["business_phone"] == "+254712345678"
+        assert data["business_email"] == "info@acme.co.ke"
+
+    @pytest.mark.integration
+    def test_update_tenant_settings_fiscal_year(
+        self, client, user, tenant, tenant_user, permissions, admin_role, user_with_admin_role, auth_headers
+    ):
+        """Test updating tenant fiscal year settings."""
+        response = client.put("/api/v1/tenants/current/settings", headers=auth_headers, json={
+            "fiscal_year_start_month": 7,
+            "fiscal_year_start_day": 1
+        })
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["fiscal_year_start_month"] == 7
+        assert data["fiscal_year_start_day"] == 1
+
+    @pytest.mark.integration
+    def test_update_tenant_settings_invalid_date_format(
+        self, client, user, tenant, tenant_user, permissions, admin_role, user_with_admin_role, auth_headers
+    ):
+        """Test that invalid date format is rejected."""
+        response = client.put("/api/v1/tenants/current/settings", headers=auth_headers, json={
+            "date_format": "INVALID"
+        })
+
+        assert response.status_code == 400
+
+    @pytest.mark.integration
+    def test_update_tenant_settings_invalid_tax_rate(
+        self, client, user, tenant, tenant_user, permissions, admin_role, user_with_admin_role, auth_headers
+    ):
+        """Test that invalid tax rate is rejected."""
+        response = client.put("/api/v1/tenants/current/settings", headers=auth_headers, json={
+            "tax_rate": 150  # Over 100%
+        })
+
+        assert response.status_code == 400
+
+    @pytest.mark.integration
+    def test_get_tenant_settings_unauthenticated(self, client):
+        """Test getting tenant settings without authentication."""
+        response = client.get("/api/v1/tenants/current/settings")
+
+        assert response.status_code == 401
+
+    @pytest.mark.integration
+    def test_update_tenant_settings_unauthenticated(self, client):
+        """Test updating tenant settings without authentication."""
+        response = client.put("/api/v1/tenants/current/settings", json={
+            "timezone": "Africa/Lagos"
+        })
+
+        assert response.status_code == 401
+
+    @pytest.mark.integration
+    def test_settings_persist_after_update(
+        self, client, user, tenant, tenant_user, permissions, admin_role, user_with_admin_role, auth_headers
+    ):
+        """Test that settings persist after update."""
+        # Update settings
+        client.put("/api/v1/tenants/current/settings", headers=auth_headers, json={
+            "currency": "TZS",
+            "tax_rate": 18.0
+        })
+
+        # Get settings again
+        response = client.get("/api/v1/tenants/current/settings", headers=auth_headers)
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["currency"] == "TZS"
+        assert data["tax_rate"] == 18.0

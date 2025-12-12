@@ -7,7 +7,7 @@ access tokens and refresh tokens.
 
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import jwt
 from flask import current_app
@@ -44,6 +44,7 @@ def generate_access_token(user_id: UUID, tenant_id: UUID, extra_claims: Optional
     expires_delta = timedelta(seconds=current_app.config["JWT_ACCESS_TOKEN_EXPIRES"])
 
     payload = {
+        "jti": str(uuid4()),  # Unique token ID for blacklisting
         "user_id": str(user_id),
         "tenant_id": str(tenant_id),
         "type": "access",
@@ -78,6 +79,7 @@ def generate_refresh_token(user_id: UUID, tenant_id: UUID) -> str:
     expires_delta = timedelta(seconds=current_app.config["JWT_REFRESH_TOKEN_EXPIRES"])
 
     payload = {
+        "jti": str(uuid4()),  # Unique token ID for blacklisting
         "user_id": str(user_id),
         "tenant_id": str(tenant_id),
         "type": "refresh",

@@ -418,3 +418,162 @@ class TestStoreUserAssignment:
         )
 
         assert response.status_code in [200, 201]
+
+
+class TestStoreSettings:
+    """Tests for /api/v1/stores/:id/settings endpoints."""
+
+    @pytest.mark.integration
+    def test_get_store_settings_default(
+        self, client, store, permissions, admin_role, user_with_admin_role, auth_headers
+    ):
+        """Test getting store settings returns defaults when none exist."""
+        response = client.get(f"/api/v1/stores/{store.id}/settings", headers=auth_headers)
+
+        assert response.status_code == 200
+        data = response.get_json()
+
+        # Check default values
+        assert data["print_receipt_by_default"] is True
+        assert data["allow_negative_stock"] is False
+        assert data["low_stock_threshold"] == 10
+        assert data["operating_hours"] is None
+
+    @pytest.mark.integration
+    def test_update_store_settings_operating_hours(
+        self, client, store, permissions, admin_role, user_with_admin_role, auth_headers
+    ):
+        """Test updating store operating hours."""
+        operating_hours = {
+            "monday": {"open": "08:00", "close": "18:00"},
+            "tuesday": {"open": "08:00", "close": "18:00"},
+            "wednesday": {"open": "08:00", "close": "18:00"},
+            "thursday": {"open": "08:00", "close": "18:00"},
+            "friday": {"open": "08:00", "close": "18:00"},
+            "saturday": {"open": "09:00", "close": "14:00"},
+            "sunday": {"open": "00:00", "close": "00:00", "closed": True}
+        }
+
+        response = client.put(f"/api/v1/stores/{store.id}/settings", headers=auth_headers, json={
+            "operating_hours": operating_hours
+        })
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["operating_hours"]["monday"]["open"] == "08:00"
+        assert data["operating_hours"]["sunday"]["closed"] is True
+
+    @pytest.mark.integration
+    def test_update_store_settings_receipt(
+        self, client, store, permissions, admin_role, user_with_admin_role, auth_headers
+    ):
+        """Test updating store receipt settings."""
+        response = client.put(f"/api/v1/stores/{store.id}/settings", headers=auth_headers, json={
+            "receipt_header": "Welcome to our store!",
+            "receipt_footer": "Thank you for shopping with us.",
+            "print_receipt_by_default": False
+        })
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["receipt_header"] == "Welcome to our store!"
+        assert data["receipt_footer"] == "Thank you for shopping with us."
+        assert data["print_receipt_by_default"] is False
+
+    @pytest.mark.integration
+    def test_update_store_settings_inventory(
+        self, client, store, permissions, admin_role, user_with_admin_role, auth_headers
+    ):
+        """Test updating store inventory settings."""
+        response = client.put(f"/api/v1/stores/{store.id}/settings", headers=auth_headers, json={
+            "allow_negative_stock": True,
+            "low_stock_threshold": 25
+        })
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["allow_negative_stock"] is True
+        assert data["low_stock_threshold"] == 25
+
+    @pytest.mark.integration
+    def test_update_store_settings_contact(
+        self, client, store, permissions, admin_role, user_with_admin_role, auth_headers
+    ):
+        """Test updating store contact info override."""
+        response = client.put(f"/api/v1/stores/{store.id}/settings", headers=auth_headers, json={
+            "phone": "+254700123456",
+            "email": "branch1@example.com",
+            "address": "123 Main St, Nairobi"
+        })
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["phone"] == "+254700123456"
+        assert data["email"] == "branch1@example.com"
+        assert data["address"] == "123 Main St, Nairobi"
+
+    @pytest.mark.integration
+    def test_get_store_settings_nonexistent_store(
+        self, client, permissions, admin_role, user_with_admin_role, auth_headers
+    ):
+        """Test getting settings for non-existent store fails."""
+        response = client.get(f"/api/v1/stores/{uuid4()}/settings", headers=auth_headers)
+
+        assert response.status_code == 404
+
+    @pytest.mark.integration
+    def test_update_store_settings_nonexistent_store(
+        self, client, permissions, admin_role, user_with_admin_role, auth_headers
+    ):
+        """Test updating settings for non-existent store fails."""
+        response = client.put(f"/api/v1/stores/{uuid4()}/settings", headers=auth_headers, json={
+            "low_stock_threshold": 50
+        })
+
+        assert response.status_code == 404
+
+    @pytest.mark.integration
+    def test_get_store_settings_unauthenticated(self, client, store):
+        """Test getting store settings without authentication."""
+        response = client.get(f"/api/v1/stores/{store.id}/settings")
+
+        assert response.status_code == 401
+
+    @pytest.mark.integration
+    def test_update_store_settings_unauthenticated(self, client, store):
+        """Test updating store settings without authentication."""
+        response = client.put(f"/api/v1/stores/{store.id}/settings", json={
+            "low_stock_threshold": 50
+        })
+
+        assert response.status_code == 401
+
+    @pytest.mark.integration
+    def test_settings_persist_after_update(
+        self, client, store, permissions, admin_role, user_with_admin_role, auth_headers
+    ):
+        """Test that settings persist after update."""
+        # Update settings
+        client.put(f"/api/v1/stores/{store.id}/settings", headers=auth_headers, json={
+            "low_stock_threshold": 100,
+            "allow_negative_stock": True
+        })
+
+        # Get settings again
+        response = client.get(f"/api/v1/stores/{store.id}/settings", headers=auth_headers)
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["low_stock_threshold"] == 100
+        assert data["allow_negative_stock"] is True
+
+    @pytest.mark.integration
+    def test_update_store_settings_invalid_threshold(
+        self, client, store, permissions, admin_role, user_with_admin_role, auth_headers
+    ):
+        """Test that invalid low stock threshold is rejected."""
+        response = client.put(f"/api/v1/stores/{store.id}/settings", headers=auth_headers, json={
+            "low_stock_threshold": -5
+        })
+
+        assert response.status_code == 400

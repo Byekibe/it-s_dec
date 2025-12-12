@@ -242,3 +242,64 @@ def has_any_permission(permissions: List[str]) -> bool:
     )
 
     return any(p in user_permissions for p in permissions)
+
+
+def require_subscription_active(f):
+    """
+    Decorator that ensures the tenant has an active subscription.
+
+    Raises:
+        ForbiddenError: If subscription is not active
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not hasattr(g, 'tenant') or g.tenant is None:
+            raise ForbiddenError("Tenant context required")
+
+        from app.blueprints.subscriptions.services import SubscriptionService
+        SubscriptionService.check_subscription_active()
+
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+def require_can_add_user(f):
+    """
+    Decorator that checks if tenant can add more users based on plan limits.
+
+    Use this decorator on user creation/invitation endpoints.
+
+    Raises:
+        ForbiddenError: If user limit reached
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not hasattr(g, 'tenant') or g.tenant is None:
+            raise ForbiddenError("Tenant context required")
+
+        from app.blueprints.subscriptions.services import SubscriptionService
+        SubscriptionService.check_can_add_user()
+
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+def require_can_add_store(f):
+    """
+    Decorator that checks if tenant can add more stores based on plan limits.
+
+    Use this decorator on store creation endpoints.
+
+    Raises:
+        ForbiddenError: If store limit reached
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not hasattr(g, 'tenant') or g.tenant is None:
+            raise ForbiddenError("Tenant context required")
+
+        from app.blueprints.subscriptions.services import SubscriptionService
+        SubscriptionService.check_can_add_store()
+
+        return f(*args, **kwargs)
+    return decorated_function

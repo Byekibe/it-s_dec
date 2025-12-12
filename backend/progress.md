@@ -1,216 +1,229 @@
-# Development Progress
+# Development Progress - Multi-Tenant SaaS Core
 
-## Current Status: Phase 1 - Foundation Setup
+**Goal**: Build a complete, reusable multi-tenant SaaS foundation for B2B applications.
 
-**Last Updated**: 2025-12-09
-
----
-
-## Completed ✓
-
-### Project Setup
-- [x] Repository structure established
-- [x] Virtual environment configured
-- [x] Dependencies installed (Flask, SQLAlchemy, Flask-Migrate, etc.)
-- [x] Environment configuration (.env.example created)
-- [x] README.md with setup instructions
-
-### Architecture Documentation
-- [x] Core system architecture documented (core_system_architecture.md)
-- [x] Security middleware architecture documented (context_and_security_middleware.md)
-- [x] CLAUDE.md created for AI assistance
-- [x] Flask app structure documented
-
-### Data Models
-- [x] Models organized into proper blueprint structure:
-  - app/core/models.py: BaseModel, TenantScopedModel, StoreScopedModel
-  - app/blueprints/users/models.py: User model with password hashing
-  - app/blueprints/tenants/models.py: Tenant, TenantUser, TenantStatus enum
-  - app/blueprints/stores/models.py: Store, StoreUser
-  - app/blueprints/rbac/models.py: Role, Permission, UserRole, RolePermission
-- [x] BaseModel abstract class with common fields (id, timestamps, to_dict)
-- [x] TenantScopedModel abstract class with tenant_id and audit fields
-- [x] StoreScopedModel abstract class with store_id
-- [x] Soft delete functionality on tenant-scoped models
-- [x] All models imported in app/__init__.py for migration discovery
-
-### Flask Application Structure
-- [x] Application factory pattern (create_app)
-- [x] Environment-based configuration (Development, Testing, Production)
-- [x] Flask extensions initialized (SQLAlchemy, CORS, Flask-Migrate)
-- [x] Blueprint structure created
-- [x] WSGI entry point configured
-
-### Blueprint Scaffolding
-- [x] Created blueprint directories for all planned features:
-  - auth, users, tenants, stores, rbac
-  - subscriptions, billing, payments
-  - usage, notifications, onboarding
-  - health, api versioning
-
-### CLI Commands
-- [x] Custom database commands (create, drop, reset)
-- [x] CLI command registration structure
-
-### Database Migrations
-- [x] Migration directory initialized
-- [x] Initial migration created for all core models
-- [x] Migration applied successfully to database
-- [x] All tables created:
-  - users, tenants, stores, roles, permissions
-  - tenant_users, store_users, user_roles, role_permissions
-- [x] All indexes and constraints created
-- [x] Permission seeding migration created and applied (48 permissions)
-
-### Core Implementation
-- [x] app/core/utils.py - JWT utilities implemented
-- [x] app/core/exceptions.py - Custom exception classes
-- [x] app/core/decorators.py - Auth and permission decorators
-- [x] app/core/middleware.py - TenantMiddleware and StoreMiddleware
-- [x] app/core/constants.py - Permission constants and default roles
-
-### Authentication System
-- [x] Auth service (login, register, refresh, bootstrap)
-- [x] Auth schemas (request/response validation)
-- [x] Auth routes registered via api_v1 blueprint
-
-### User Management
-- [x] UserService with full CRUD operations
-- [x] User schemas for request/response validation
-- [x] User routes (7 endpoints) registered
-
-### Tenant Management
-- [x] TenantService for tenant operations
-- [x] Tenant schemas for request/response validation
-- [x] Tenant routes (2 endpoints) registered
-
-### Store Management
-- [x] StoreService with CRUD and user assignment
-- [x] Store schemas for request/response validation
-- [x] Store routes (8 endpoints) registered
-
-### RBAC Management
-- [x] RBACService for roles, permissions, user role assignments
-- [x] RBAC schemas for request/response validation
-- [x] RBAC routes (9 endpoints) registered
+**Last Updated**: 2025-12-12
 
 ---
 
-## In Progress 🔄
+## Current Status: Phase 2 - Core Features
 
-### Core Implementation Files
-- [x] app/core/models.py - Complete with abstract base classes
-- [x] app/core/middleware.py - TenantMiddleware and StoreMiddleware
-- [x] app/core/exceptions.py - All custom exceptions
-- [x] app/core/decorators.py - Auth and permission decorators
-- [x] app/core/utils.py - JWT utilities
-- [ ] app/core/validators.py - Not yet implemented
-- [x] app/core/constants.py - Permission constants and default roles
-
-### Blueprint Implementation
-- [x] Model files in blueprints (users, tenants, stores, rbac) - Complete
-- [x] Auth blueprint routes.py, services.py, schemas.py - Complete
-- [x] Users blueprint routes.py, services.py, schemas.py - Complete
-- [x] Tenants blueprint routes.py, services.py, schemas.py - Complete
-- [x] Stores blueprint routes.py, services.py, schemas.py - Complete
-- [x] RBAC blueprint routes.py, services.py, schemas.py - Complete
-- [ ] Other blueprint files (subscriptions, billing, etc.) - Not yet implemented
+**Phase 1 (Foundation)**: ✅ COMPLETE
+**Phase 2 (Core Features)**: 🔄 IN PROGRESS
+**Phase 3 (Integration & Polish)**: ⏳ PENDING
 
 ---
 
-## Blocked/Issues ⚠️
+## Phase Overview
 
-### Critical Path Items
-1. ~~**Database Migration Required**~~ ✓ RESOLVED
-2. ~~**Core Models Location**~~ ✓ RESOLVED - Models organized into blueprints
-3. ~~**Blueprint Registration**~~ ✓ RESOLVED - All core blueprints registered
+### Phase 1: Foundation ✅ COMPLETE
+Everything needed to run a basic multi-tenant SaaS.
 
-### Technical Debt
-- run.py and docker-compose.yml are empty
-- SQLAlchemy automatic tenant query filter hook not implemented
+| Component | Status | Endpoints | Tests |
+|-----------|--------|-----------|-------|
+| Multi-tenancy | ✅ Done | - | - |
+| Authentication | ✅ Done | 12 | 60+ |
+| User Management | ✅ Done | 9 | 20+ |
+| Tenant Management | ✅ Done | 4 | 15+ |
+| Store Management | ✅ Done | 10 | 20+ |
+| RBAC | ✅ Done | 9 | 30+ |
+| Subscriptions | ✅ Done | 10 | 20 |
+| Health Checks | ✅ Done | 2 | 4 |
 
-### Application Bugs (discovered by tests)
-- **8 failing tests** due to app code issues:
-  1. `TenantStatus` enum not JSON serializable in tenant responses
-  2. `UpdateCurrentUserSchema.validate_new_password()` has wrong signature
-  3. User roles endpoint returns `None` for role names in response
-  4. `/tenants/current` GET returns 403 even with valid auth (missing permission?)
+### Phase 2: Core Features 🔄 IN PROGRESS
+Features every serious SaaS application needs.
 
----
+| Component | Status | Priority | Description |
+|-----------|--------|----------|-------------|
+| Audit Logging | ⏳ Pending | High | Track who did what, when |
+| Notifications | ⏳ Pending | High | In-app, email alerts |
+| File Storage | ⏳ Pending | Medium | Uploads, avatars, attachments |
 
-## Next Steps (Priority Order)
+### Phase 3: Integration & Polish
+Advanced features for mature applications.
 
-1. ~~**Migrate Core Models**~~ ✓ COMPLETED
-2. ~~**Create Initial Migration**~~ ✓ COMPLETED
-3. ~~**Implement Core Utilities**~~ ✓ COMPLETED
-4. ~~**Implement Security Middleware**~~ ✓ COMPLETED
-5. ~~**Build Authentication System**~~ ✓ COMPLETED
-6. ~~**Build User Management**~~ ✓ COMPLETED
-7. ~~**Build Tenant Management**~~ ✓ COMPLETED
-8. ~~**Build Store Management**~~ ✓ COMPLETED
-9. ~~**Build RBAC Management**~~ ✓ COMPLETED
-
-10. ~~**Health Check Endpoints**~~ ✓ COMPLETED
-    - ✓ GET /health (liveness probe)
-    - ✓ GET /health/db (readiness probe)
-
-11. ~~**Testing Setup**~~ ✓ MOSTLY COMPLETE (2025-12-09)
-    - ✓ pytest.ini configured with test markers
-    - ✓ Comprehensive fixtures in tests/conftest.py
-    - ✓ Test files created for all modules
-    - ✓ 107 tests passing (up from 84)
-    - ⚠️ 8 tests failing due to app bugs (not test issues)
-
-12. **Fix Application Bugs** (NEXT)
-    - Fix TenantStatus JSON serialization
-    - Fix UpdateCurrentUserSchema validation
-    - Fix user roles response structure
-    - Check tenant endpoint permissions
-
-13. **Complete Core Auth**
-    - Logout & token invalidation
-    - Forgot password / Reset password flow
-    - Email verification
-    - Session management
-
-14. **Complete Core User Management**
-    - User invitation flow
-    - Profile enhancements (avatar, preferences)
-
-15. **Complete Tenant & Store Features**
-    - Tenant settings model
-    - Multi-tenant user support (switch tenant)
-    - Store settings & operating hours
-
-16. **Frontend or Subscription System**
-    - Option A: Start frontend (React/Vue) with completed core
-    - Option B: Continue with subscription/billing blueprints
+| Component | Status | Priority | Description |
+|-----------|--------|----------|-------------|
+| Webhooks | ⏳ Pending | Medium | Event notifications to external systems |
+| API Keys | ⏳ Pending | Medium | Service-to-service authentication |
+| API Documentation | ⏳ Pending | Medium | OpenAPI/Swagger |
+| Admin Dashboard | ⏳ Pending | Low | Super admin features |
 
 ---
 
-## Metrics
+## Detailed Completion Status
 
-- **Files Created**: ~75+
-- **Blueprints Scaffolded**: 12
-- **Blueprints Implemented**: 5 (auth, users, tenants, stores, rbac)
-- **Models Defined**: 9 (organized across 5 files)
-- **Database Tables Created**: 9
-- **Migrations Applied**: 2
-- **Permissions Seeded**: 48
-- **Tests Written**: 115 (107 passing, 8 failing)
-- **Test Files**: 7
-  - tests/test_auth.py - Authentication tests
-  - tests/test_tenant_isolation.py - Tenant isolation tests
-  - tests/test_rbac.py - RBAC permission tests
-  - tests/test_api_users.py - User endpoint tests
-  - tests/test_api_stores.py - Store endpoint tests
-  - tests/test_api_tenants.py - Tenant endpoint tests
-  - tests/test_health.py - Health check tests
-- **API Endpoints Implemented**: 32
-  - Auth: 4 routes
-  - Users: 7 routes
-  - Tenants: 2 routes
-  - Stores: 8 routes
-  - RBAC: 9 routes
-  - Health: 2 routes
-- **Code Coverage**: ~93% (estimated from passing tests)
+### ✅ Core Infrastructure
+- [x] Flask application factory with environment configs
+- [x] SQLAlchemy with Flask-Migrate
+- [x] Docker & docker-compose (PostgreSQL, Redis, Celery)
+- [x] Celery for background tasks
+- [x] Flask-Mail for email sending
+- [x] Custom exception handling
+- [x] JWT utilities
+
+### ✅ Multi-Tenant Architecture
+- [x] TenantScopedModel base class
+- [x] StoreScopedModel base class
+- [x] TenantMiddleware (extracts tenant from JWT)
+- [x] StoreMiddleware (X-Store-ID header)
+- [x] Automatic tenant isolation in queries
+
+### ✅ Authentication System (12 endpoints)
+- [x] Login with tenant context
+- [x] Registration (creates tenant + subscription)
+- [x] Token refresh
+- [x] Bootstrap (first user setup)
+- [x] Logout (single session)
+- [x] Logout all sessions
+- [x] Forgot password flow
+- [x] Reset password with token
+- [x] Email verification
+- [x] Resend verification
+- [x] Accept invitation
+- [x] Switch tenant context
+
+### ✅ User Management (9 endpoints)
+- [x] Get current user profile
+- [x] Update current user
+- [x] List user's tenants
+- [x] List users (with pagination, search)
+- [x] Get user by ID
+- [x] Create user
+- [x] Update user
+- [x] Deactivate user
+- [x] Invite user via email
+
+### ✅ Tenant Management (4 endpoints)
+- [x] Get current tenant
+- [x] Update current tenant
+- [x] Get tenant settings
+- [x] Update tenant settings
+
+### ✅ Store Management (10 endpoints)
+- [x] List stores
+- [x] Get store by ID
+- [x] Create store
+- [x] Update store
+- [x] Delete store (soft)
+- [x] Get store users
+- [x] Assign users to store
+- [x] Remove users from store
+- [x] Get store settings
+- [x] Update store settings
+
+### ✅ RBAC System (9 endpoints)
+- [x] List roles
+- [x] Get role by ID
+- [x] Create role
+- [x] Update role
+- [x] Delete role
+- [x] List permissions
+- [x] Get user roles
+- [x] Assign role to user
+- [x] Revoke role from user
+
+### ✅ Subscription System (10 endpoints)
+- [x] List plans
+- [x] Get plan by ID
+- [x] Get current subscription
+- [x] Get subscription with usage
+- [x] Get usage statistics
+- [x] Get trial status
+- [x] Change plan
+- [x] Cancel subscription
+- [x] Reactivate subscription
+- [x] Update payment method
+
+### ✅ Limit Enforcement
+- [x] @require_can_add_user decorator
+- [x] @require_can_add_store decorator
+- [x] @require_subscription_active decorator
+- [x] Automatic subscription on registration
+
+### ✅ Testing Infrastructure
+- [x] pytest configuration
+- [x] Comprehensive fixtures (conftest.py)
+- [x] 216 tests passing
+- [x] Coverage for all core features
+
+---
+
+## 🔄 Next Up: Phase 2 Features
+
+### Audit Logging (High Priority)
+Track all data changes for compliance and debugging.
+
+```
+Models: AuditLog
+Endpoints: GET /audit, GET /audit/:id, GET /audit/export
+Permissions: audit.view, audit.export
+```
+
+### Notifications (High Priority)
+Unified notification system.
+
+```
+Models: Notification, NotificationPreference
+Endpoints: GET /notifications, PUT /notifications/:id/read, etc.
+Channels: in_app, email, push (future)
+```
+
+### File Storage (Medium Priority)
+Generic file handling.
+
+```
+Models: File
+Endpoints: POST /files, GET /files/:id, DELETE /files/:id
+Backends: local (dev), S3 (prod)
+```
+
+---
+
+## Metrics Summary
+
+| Metric | Count |
+|--------|-------|
+| API Endpoints | 56 |
+| Tests Passing | 216 |
+| Blueprints Implemented | 7 |
+| Database Tables | 14 |
+| Permissions Defined | 50 |
+| Default Plans | 4 (Free, Basic, Pro, Enterprise) |
+
+---
+
+## Architecture Documentation
+
+- `notes/core_architecture_and_reuse.md` - How to reuse core for new apps
+- `notes/docker.md` - Docker setup guide
+- `CLAUDE.md` - AI assistance guide
+- `core_system_architecture.md` - Technical architecture
+- `context_and_security_middleware.md` - Security middleware details
+
+---
+
+## Historical Notes
+
+### 2025-12-12
+- Completed subscription system with limit enforcement
+- 20 new tests for subscriptions
+- Created core architecture documentation
+- Restructured roadmap for "core completion" goal
+
+### 2025-12-11
+- Email verification system
+- User invitation flow
+- Multi-tenant user support (switch tenant)
+- Tenant and store settings
+
+### 2025-12-10
+- Logout and token invalidation
+- Forgot/reset password flow
+- Docker and Celery setup
+- Fixed all application bugs (115 tests passing)
+
+### 2025-12-09
+- Initial testing infrastructure
+- Bug fixes from test failures
+- RBAC endpoint completion

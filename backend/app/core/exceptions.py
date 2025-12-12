@@ -74,6 +74,15 @@ class InvalidTokenError(APIError):
         super().__init__(message)
 
 
+class TokenRevokedError(APIError):
+    """Raised when a JWT token has been revoked/blacklisted."""
+    status_code = 401
+    error_code = "token_revoked"
+
+    def __init__(self, message: str = "Token has been revoked"):
+        super().__init__(message)
+
+
 # Authorization Errors (403)
 
 class ForbiddenError(APIError):

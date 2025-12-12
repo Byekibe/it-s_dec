@@ -27,6 +27,7 @@ from app.core.exceptions import (
     UserNotFoundError,
     UserInactiveError,
     TenantSuspendedError,
+    TokenRevokedError,
 )
 
 
@@ -172,6 +173,10 @@ class TenantMiddleware:
         "/api/v1/auth/register",
         "/api/v1/auth/refresh",
         "/api/v1/auth/bootstrap",
+        "/api/v1/auth/forgot-password",
+        "/api/v1/auth/reset-password",
+        "/api/v1/auth/verify-email",
+        "/api/v1/auth/accept-invite",
     ]
 
     # Path prefixes that don't require authentication
@@ -238,9 +243,37 @@ class TenantMiddleware:
         # Extract required claims
         user_id = payload.get("user_id")
         tenant_id = payload.get("tenant_id")
+        jti = payload.get("jti")
+        iat = payload.get("iat")
 
         if not user_id or not tenant_id:
             raise InvalidTokenError("Token missing required claims")
+
+        # Check if token is blacklisted (only if jti is present - backwards compatible)
+        if jti:
+            from app.blueprints.auth.models import BlacklistedToken
+            if BlacklistedToken.is_blacklisted(jti):
+                raise TokenRevokedError()
+
+        # Check if user has revoked all tokens (logout-all)
+        if iat:
+            from app.blueprints.auth.models import UserTokenRevocation
+            from datetime import datetime, timezone
+            revocation_time = UserTokenRevocation.get_revocation_time(UUID(user_id))
+            if revocation_time:
+                # Convert iat to datetime if it's a timestamp
+                if isinstance(iat, (int, float)):
+                    token_issued_at = datetime.fromtimestamp(iat, tz=timezone.utc)
+                else:
+                    token_issued_at = iat
+                # Make revocation_time timezone-aware for comparison
+                if revocation_time.tzinfo is None:
+                    revocation_time = revocation_time.replace(tzinfo=timezone.utc)
+                # Reject tokens issued before the revocation time
+                # Note: iat is stored as integer seconds in JWT, so tokens issued
+                # in the same second as revocation will pass (iat >= revoked_at)
+                if token_issued_at < revocation_time:
+                    raise TokenRevokedError("All sessions have been revoked")
 
         # Load and validate user/tenant
         user, tenant, tenant_user = load_user_and_tenant(user_id, tenant_id)

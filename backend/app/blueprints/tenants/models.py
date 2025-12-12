@@ -4,11 +4,14 @@ Tenant models
 from datetime import datetime
 from enum import Enum as PyEnum
 
-from sqlalchemy import Column, String, DateTime, ForeignKey, Enum, Index, UniqueConstraint
+import uuid
+
+from sqlalchemy import Column, String, DateTime, ForeignKey, Enum, Index, UniqueConstraint, Integer, Numeric, Boolean
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
 from app.core.models import BaseModel
+from app.extensions import db
 
 
 class TenantStatus(PyEnum):
@@ -84,3 +87,67 @@ class TenantUser(BaseModel):
 
     def __repr__(self):
         return f'<TenantUser user_id={self.user_id} tenant_id={self.tenant_id}>'
+
+
+class TenantSettings(db.Model):
+    """
+    Tenant-specific configuration settings.
+    One-to-one relationship with Tenant.
+    """
+    __tablename__ = 'tenant_settings'
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey('tenants.id'), nullable=False, unique=True, index=True)
+
+    # Regional settings
+    timezone = Column(String(50), nullable=False, default='Africa/Nairobi')
+    currency = Column(String(3), nullable=False, default='KES')
+    locale = Column(String(10), nullable=False, default='en-KE')
+
+    # Display formats
+    date_format = Column(String(20), nullable=False, default='DD/MM/YYYY')
+    time_format = Column(String(10), nullable=False, default='24h')
+
+    # Tax settings
+    tax_rate = Column(Numeric(5, 2), nullable=False, default=16.00)  # Kenya VAT 16%
+    tax_inclusive_pricing = Column(Boolean, nullable=False, default=True)
+    tax_id = Column(String(50), nullable=True)  # KRA PIN
+
+    # Fiscal/Accounting
+    fiscal_year_start_month = Column(Integer, nullable=False, default=1)  # January
+    fiscal_year_start_day = Column(Integer, nullable=False, default=1)
+
+    # Business info (for receipts/invoices)
+    business_name = Column(String(255), nullable=True)
+    business_address = Column(String(500), nullable=True)
+    business_phone = Column(String(50), nullable=True)
+    business_email = Column(String(255), nullable=True)
+
+    # Timestamps
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationship
+    tenant = relationship('Tenant', backref=db.backref('settings', uselist=False, lazy='joined'))
+
+    def __repr__(self):
+        return f'<TenantSettings tenant_id={self.tenant_id}>'
+
+    def to_dict(self):
+        """Convert settings to dictionary."""
+        return {
+            'timezone': self.timezone,
+            'currency': self.currency,
+            'locale': self.locale,
+            'date_format': self.date_format,
+            'time_format': self.time_format,
+            'tax_rate': float(self.tax_rate) if self.tax_rate else 16.00,
+            'tax_inclusive_pricing': self.tax_inclusive_pricing,
+            'tax_id': self.tax_id,
+            'fiscal_year_start_month': self.fiscal_year_start_month,
+            'fiscal_year_start_day': self.fiscal_year_start_day,
+            'business_name': self.business_name,
+            'business_address': self.business_address,
+            'business_phone': self.business_phone,
+            'business_email': self.business_email,
+        }
